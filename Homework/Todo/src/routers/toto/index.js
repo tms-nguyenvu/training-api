@@ -5,6 +5,10 @@ const todoController = require("../../controllers/todo.controller");
 const asyncHandler = require("../../middlewares/async.handler");
 const router = express.Router();
 
+const authenticated = require("../../middlewares/auth.util");
+
+router.use(asyncHandler(authenticated.authMiddleware));
+
 router.post("/", asyncHandler(todoController.createTodo));
 
 router.get("/", asyncHandler(todoController.getAllTodos));

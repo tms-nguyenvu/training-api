@@ -1,6 +1,6 @@
 "use strict";
 
-const todoModel = require("../models/toto");
+const todoModel = require("../models/toto.model");
 const { convertToObjectIdMongodb, getSelectData } = require("../utils/util");
 
 class TodoRepository {
@@ -16,6 +16,7 @@ class TodoRepository {
     select = [],
   }) {
     const skip = (page - 1) * limit;
+
     const sortBy = sort === "ctime" ? { createdAt: -1 } : { updatedAt: -1 };
 
     if (filter.search) {

@@ -9,14 +9,17 @@ const {
 const { todoValidate } = require("../validations/todo.validate");
 
 class TodoService {
-  // Tạo Todo mới
+  // Create a new Todo
   static async createTodo(payload) {
-    const { error } = todoValidate(payload);
+    // Validate the payload using manual todoValidate
+    const { error, value } = todoValidate(payload);
     if (error) {
-      throw new BadRequestError(error.details[0].message);
+      // Throw the first error message
+      throw new BadRequestError(error[0].message);
     }
 
-    const newTodo = await TodoRepository.create(payload);
+    // Create Todo using validated value (you can also use payload directly if desired)
+    const newTodo = await TodoRepository.create(value);
     if (!newTodo) {
       throw new InternalServerError("Failed to create todo");
     }
@@ -43,11 +46,11 @@ class TodoService {
   }
 
   static async updateTodo(todoId, payload) {
-    const { error } = todoValidate(payload);
+    const { error, value } = todoValidate(payload);
     if (error) {
-      throw new BadRequestError(error.details[0].message);
+      throw new BadRequestError(error[0].message);
     }
-    const updatedTodo = await TodoRepository.update(todoId, payload);
+    const updatedTodo = await TodoRepository.update(todoId, value);
     if (!updatedTodo) {
       throw new NotFoundError("Todo not found");
     }
