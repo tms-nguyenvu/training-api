@@ -68,6 +68,33 @@ const generateSlug = (title) => {
   });
 };
 
+const hashPassword = (password) => {
+  const salt = Math.random().toString(36).substr(2, 10);
+  const combined = salt + password;
+  let hash = 0;
+  for (let i = 0; i < combined.length; i++) {
+    const charCode = combined.charCodeAt(i);
+    hash = (hash << 5) - hash + charCode;
+    hash |= 0;
+  }
+  return `${salt}:${hash.toString()}`;
+};
+
+const comparePassword = (plainPassword, storedHash) => {
+  const [salt, originalHash] = storedHash.split(":");
+  if (!salt || !originalHash) {
+    return false;
+  }
+  const combined = salt + plainPassword;
+  let hash = 0;
+  for (let i = 0; i < combined.length; i++) {
+    const charCode = combined.charCodeAt(i);
+    hash = (hash << 5) - hash + charCode;
+    hash |= 0;
+  }
+  return hash.toString() === originalHash;
+};
+
 module.exports = {
   getInfoData,
   getSelectData,
@@ -77,4 +104,6 @@ module.exports = {
   convertToObjectIdMongodb,
   generateKey,
   generateSlug,
+  hashPassword,
+  comparePassword,
 };

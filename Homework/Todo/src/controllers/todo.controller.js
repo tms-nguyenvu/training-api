@@ -4,7 +4,6 @@ const TodoService = require("../services/todo.service");
 const { CREATED, OK } = require("../utils/success.response");
 
 class TodoController {
-  // Tạo Todo mới
   createTodo = async (req, res, next) => {
     new CREATED({
       message: "Create todo successfully",
