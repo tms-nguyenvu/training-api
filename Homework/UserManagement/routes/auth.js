@@ -93,7 +93,7 @@ router.post("/register", async (req, res) => {
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       return res
-        .status(400)
+        .status(409)
         .json({ errors: { email: "Email is already in use." } });
     }
 
@@ -178,23 +178,17 @@ router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   // Validate valid user input
-  let errors = {};
-  if (!email) errors.email = "Email is required.";
-  if (!password) errors.password = "Password is required.";
-
-  if (Object.keys(errors).length > 0) {
-    return res.status(400).json({ errors });
+  if (!email || !password) {
+    return res
+      .status(400)
+      .json({ message: "Email and password are required." });
   }
 
   try {
     // find user by email
     const user = await User.findOne({ email: email.toLowerCase() });
 
-    if (!user) {
-      return res.status(404).json({ message: "User not exist" });
-    }
-
-    if (user.password !== password) {
+    if (!user || user.password !== password) {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
@@ -228,7 +222,7 @@ router.post("/login", async (req, res) => {
  * @param {express.Response} res - Express response object used to send back the HTTP response.
  * @returns {Promise<void>} Sends a response indicating whether the logout was successful or not.
  */
-router.delete("/logout", authMiddleware, async (req, res) => {
+router.put("/logout", authMiddleware, async (req, res) => {
   const token = req.user.token;
 
   try {
@@ -262,7 +256,7 @@ router.delete("/logout", authMiddleware, async (req, res) => {
  * @param {express.Response} res - Express response object used to send back the HTTP response.
  * @returns {Promise<void>} Sends a response indicating whether the password reset email was sent successfully or not.
  */
-router.post("/password-reset-requests", async (req, res) => {
+router.post("/password-reset/request", async (req, res) => {
   const { email } = req.body;
 
   if (!email) {
@@ -285,7 +279,7 @@ router.post("/password-reset-requests", async (req, res) => {
     await user.save();
 
     // Send password reset email
-    const resetLink = `http://localhost:3000/api/auth/reset-password?token=${resetToken}`;
+    const resetLink = `http://localhost:3000/api/auth/password-reset?token=${resetToken}`;
 
     await sendEmail({
       to: user.email,
@@ -310,7 +304,7 @@ router.post("/password-reset-requests", async (req, res) => {
  * @param {import("express").Response} res - Express response object.
  * @returns {void} Sends an HTML form for the user to reset their password.
  */
-router.get("/reset-password", (req, res) => {
+router.get("/password-reset", (req, res) => {
   const { token } = req.query;
   if (!token) {
     return res.status(400).send("Invalid token.");
@@ -318,7 +312,7 @@ router.get("/reset-password", (req, res) => {
 
   res.send(`
     <h2>Đặt lại mật khẩu</h2>
-    <form method="POST" action="/api/auth/password-resets?token=${token}">
+    <form method="POST" action="/api/auth/password-reset?token=${token}">
       <label for="newPassword">Mật khẩu mới:</label>
       <input type="password" id="newPassword" name="newPassword" required>
       <button type="submit">Cập nhật mật khẩu</button>
@@ -337,7 +331,7 @@ router.get("/reset-password", (req, res) => {
  * @param {express.Response} res - Express response object used to send back the HTTP response.
  * @returns {Promise<void>} Sends a response indicating whether the password reset was successful or not.
  */
-router.post("/password-resets", async (req, res) => {
+router.post("/password-reset", async (req, res) => {
   const { newPassword } = req.body;
   const { token } = req.query;
 
@@ -370,58 +364,6 @@ router.post("/password-resets", async (req, res) => {
     await user.save();
 
     res.json({ message: "Password reset successfully. You can now log in." });
-  } catch (err) {
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: err.message });
-  }
-});
-
-/**
- * @route PATCH /change-password
- * @description Allows an authenticated user to change their password.
- * @access Private (User must be logged in)
- *
- * @param {express.Request} req - Express request object containing:
- *   - `oldPassword` in the request body (required).
- *   - `newPassword` in the request body (required, must be at least 6 characters long).
- *   - `req.user.id` from the `authMiddleware` (authenticated user).
- * @param {express.Response} res - Express response object used to send back the HTTP response.
- * @returns {Promise<void>} Sends a response indicating whether the password change was successful or not.
- */
-router.patch("/change-password", authMiddleware, async (req, res) => {
-  const { oldPassword, newPassword } = req.body;
-
-  if (!oldPassword || !newPassword) {
-    return res
-      .status(400)
-      .json({ message: "Old password and new password are required." });
-  }
-
-  if (newPassword.length < 6) {
-    return res
-      .status(400)
-      .json({ message: "New password must be at least 6 characters." });
-  }
-
-  try {
-    // Retrieve user from the token
-    const user = await User.findById(req.user.id);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
-
-    // Validate old password (SHOULD COMPARE HASHED PASSWORD)
-    if (user.password !== oldPassword) {
-      return res.status(401).json({ message: "Old password is incorrect." });
-    }
-
-    // Update to new password (SHOULD BE HASHED BEFORE SAVING)
-    user.password = newPassword; // Hash with bcrypt before saving
-    await user.save();
-
-    res.json({ message: "Password changed successfully." });
   } catch (err) {
     res
       .status(500)

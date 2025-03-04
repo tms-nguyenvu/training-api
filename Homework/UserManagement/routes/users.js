@@ -88,41 +88,55 @@ router.put(
 );
 
 /**
- * Get a paginated list of users (Admin only).
- * @route GET /
- * @access Private (Admin)
- * @param {number} req.query.page - The page number.
- * @param {number} req.query.limit - The number of users per page.
+ * @route PATCH /change-password
+ * @description Allows an authenticated user to change their password.
+ * @access Private (User must be logged in)
+ *
+ * @param {express.Request} req - Express request object containing:
+ *   - `oldPassword` in the request body (required).
+ *   - `newPassword` in the request body (required, must be at least 6 characters long).
+ *   - `req.user.id` from the `authMiddleware` (authenticated user).
+ * @param {express.Response} res - Express response object used to send back the HTTP response.
+ * @returns {Promise<void>} Sends a response indicating whether the password change was successful or not.
  */
-router.get(
-  "/",
-  authMiddleware,
-  adminMiddleware(["admin"]),
-  async (req, res) => {
-    try {
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
-      const skip = (page - 1) * limit;
+router.patch("/me/change-password", authMiddleware, async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
 
-      const users = await User.find()
-        .select("-password -token")
-        .skip(skip)
-        .limit(limit);
-      const totalUsers = await User.countDocuments();
-
-      res.json({
-        page,
-        limit,
-        totalUsers,
-        totalPages: Math.ceil(totalUsers / limit),
-        users,
-      });
-    } catch (error) {
-      res
-        .status(500)
-        .json({ message: "Internal server error", error: error.message });
-    }
+  if (!oldPassword || !newPassword) {
+    return res
+      .status(400)
+      .json({ message: "Old password and new password are required." });
   }
-);
+
+  if (newPassword.length < 6) {
+    return res
+      .status(400)
+      .json({ message: "New password must be at least 6 characters." });
+  }
+
+  try {
+    // Retrieve user from the token
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Validate old password (SHOULD COMPARE HASHED PASSWORD)
+    if (user.password !== oldPassword) {
+      return res.status(401).json({ message: "Old password is incorrect." });
+    }
+
+    // Update to new password (SHOULD BE HASHED BEFORE SAVING)
+    user.password = newPassword; // Hash with bcrypt before saving
+    await user.save();
+
+    res.json({ message: "Password changed successfully." });
+  } catch (err) {
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: err.message });
+  }
+});
 
 module.exports = router;
